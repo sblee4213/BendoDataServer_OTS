@@ -1,0 +1,10 @@
+15:01:36.800	OTS is not connected.
+15:01:36.975	US socket server is started.
+15:01:36.977	ES socket server is started.
+15:01:37.012	US Socket created
+15:01:37.014	Port bined
+15:01:37.015	US Socket listening ... 
+15:01:37.017	ES Socket created
+15:01:37.018	Port bined
+15:01:37.018	ES Socket listening ... 
+15:02:53.490	US Socket connected

@@ -1,0 +1,11 @@
+11:49:51.414	OTS is not connected.
+11:49:51.541	US socket server is started.
+11:49:51.542	ES socket server is started.
+11:49:51.587	US Socket created
+11:49:51.587	Port bined
+11:49:51.587	US Socket listening ... 
+11:49:51.588	ES Socket created
+11:49:51.588	Port bined
+11:49:51.588	ES Socket listening ... 
+11:50:14.581	US Socket connected
+11:50:23.651	[RX]CMD_US_SCAN_START_REQ

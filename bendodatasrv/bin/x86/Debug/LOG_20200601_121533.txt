@@ -1,0 +1,14 @@
+12:15:33.407	OTS is not connected.
+12:15:33.482	US socket server is started.
+12:15:33.482	ES socket server is started.
+12:15:33.503	US Socket created
+12:15:33.503	Port bined
+12:15:33.503	US Socket listening ... 
+12:15:33.504	ES Socket created
+12:15:33.504	Port bined
+12:15:33.504	ES Socket listening ... 
+12:15:34.648	US Socket connected
+12:15:35.912	[RX]CMD_US_SCAN_ROI_REQ
+12:15:35.913	US ROI store path = E:\ustest
+12:15:53.079	[RX]CMD_US_SCAN_ROI_REQ
+12:15:53.079	US ROI store path = E:\ustest

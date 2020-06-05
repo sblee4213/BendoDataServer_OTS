@@ -1,0 +1,13 @@
+10:14:51.299	OTS is connected.
+10:14:51.362	US socket server is started.
+10:14:51.363	ES socket server is started.
+10:14:51.381	US Socket created
+10:14:51.381	Port bined
+10:14:51.381	US Socket listening ... 
+10:14:51.383	ES Socket created
+10:14:51.383	Port bined
+10:14:51.383	ES Socket listening ... 
+10:14:52.157	US Socket connected
+10:14:53.917	[RX]CMD_US_POS_START_REQ
+10:14:55.887	Dummy read for stabilizing[3]
+10:14:55.888	[TX]CMD_US_POS_RES|Rd0063    0.000    0.000    0.000    0.000    0.000    0.000    0.000

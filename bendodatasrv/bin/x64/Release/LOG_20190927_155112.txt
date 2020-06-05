@@ -1,0 +1,9 @@
+15:51:19.356	US socket server is started.
+15:51:19.357	ES socket server is started.
+15:51:19.389	US Socket created
+15:51:19.389	Port bined
+15:51:19.390	US Socket listening ... 
+15:51:19.393	ES Socket created
+15:51:19.393	Port bined
+15:51:19.394	ES Socket listening ... 
+15:51:19.420	Position sensor configured(COM15, 9600)

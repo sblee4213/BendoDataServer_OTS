@@ -1,0 +1,13 @@
+10:13:18.338	OTS is connected.
+10:13:18.406	US socket server is started.
+10:13:18.407	ES socket server is started.
+10:13:18.427	US Socket created
+10:13:18.427	Port bined
+10:13:18.427	US Socket listening ... 
+10:13:18.428	ES Socket created
+10:13:18.428	Port bined
+10:13:18.428	ES Socket listening ... 
+10:13:19.083	US Socket connected
+10:13:21.734	[RX]CMD_US_SCAN_START_REQ
+10:13:21.762	RoI = (11, 22) w:123, h:123
+10:13:21.789	US store path = E:\ustest
