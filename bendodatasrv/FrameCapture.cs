@@ -36,6 +36,9 @@ namespace bendodatasrv
         public string deviceName;
         private int devId = 1;
 
+        public int LinkPortN = 1;
+        public int LinkPortSpeed = 57600;
+
         private Mat m_cvFrm;
         private int dist = 0;
         private VideoCapture m_cvVideoStream;

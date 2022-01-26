@@ -6,6 +6,7 @@ using System.Threading;
 using System.Net;
 using System.Numerics;
 using System.IO.Ports;
+using System.Diagnostics;
 
 
 
@@ -58,6 +59,9 @@ namespace bendodatasrv
         private static string rbuf = string.Empty;
         private static bool b_rbuf = false;
 
+        static Stopwatch stopwatch = new Stopwatch();
+        static Stopwatch stopwatchTHR = new Stopwatch();
+
         public byte m_bTargetPort;
 
         private Logger objLogger;
@@ -70,6 +74,44 @@ namespace bendodatasrv
             objFrame = FrameCapture.Instance;
 
 
+        }
+
+        public int StartServer()
+        {
+            int result = 0;
+            byte[] baud = new byte[6];
+
+            string linkPort = string.Format("COM{0}", objFrame.LinkPortN);
+            baud = StringToByte(objFrame.LinkPortSpeed.ToString());
+
+            result = this.SetPort(linkPort, int.Parse(ByteToString(baud)));
+
+            if (result == 1)
+            {
+                Console.WriteLine("Link created");
+                objLogger.LogWrite("Link created");
+            }
+            else
+            {
+                Console.WriteLine("Ther is No COM port. Link failed");
+                objLogger.LogWrite("Ther is No COM port. Link failed");
+                return result;
+            }
+
+            if (result == 1)
+            {
+                stopwatch.Start();
+                stopwatchTHR.Start();
+                this.StartThread();
+            }
+            return result;
+        }
+
+        public void StopServer()
+        {
+            this.StopThread();
+            this.ResetPort();
+            objFrame.StopMaker();
         }
 
         public int SetPort(string pName, int baud)
