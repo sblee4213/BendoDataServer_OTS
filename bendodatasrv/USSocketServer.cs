@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using System.Net;
 using System.Numerics;
 using System.IO.Ports;
@@ -53,6 +53,10 @@ namespace bendodatasrv
 
         private static byte[] link_rbuffer = new byte[250];
         private static int link_rbuffer_pos = 0;
+
+        private static Mutex LinkComSv = new Mutex(false);
+        private static string rbuf = string.Empty;
+        private static bool b_rbuf = false;
 
         public byte m_bTargetPort;
 
@@ -130,6 +134,35 @@ namespace bendodatasrv
             }
         }
 
+        public void putToBuff(string buf)
+        {
+            LinkComSv.WaitOne();
+            
+            rbuf = buf;
+            b_rbuf = true;
+
+            LinkComSv.ReleaseMutex();
+        }
+
+        private static string ReadBuff()
+        {
+            string buf;
+            LinkComSv.WaitOne();
+
+            if (b_rbuf)
+            {
+                buf = rbuf;
+                b_rbuf = false;
+            }
+
+            else
+            {
+                buf = null;
+            }
+
+            LinkComSv.ReleaseMutex();
+            return buf;
+        }
 
         public void SendMessage(String message)
         {
