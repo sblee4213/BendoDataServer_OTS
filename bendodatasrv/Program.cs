@@ -52,9 +52,6 @@ namespace bendodatasrv
 
             USSocketServer objUSSocketServer = USSocketServer.Instance;
             objLogger.LogWrite("US socket server is started.");
-
-
-            objUSSocketServer.StartServer(1234);
             
 
             while (true)
@@ -72,7 +69,7 @@ namespace bendodatasrv
                 {
                     if (objUSSocketServer.mIsSocketConnected)
                     {
-                        objUSSocketServer.StopServer();
+                        
                     }
                     objLogger.LogWrite("US socket server is stoped.");
 
