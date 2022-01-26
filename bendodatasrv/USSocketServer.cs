@@ -51,6 +51,9 @@ namespace bendodatasrv
         private int m_LinkBaudrate = 9600;
         private static bool m_bLinkComIsOpen = false;
 
+        private static byte[] link_rbuffer = new byte[250];
+        private static int link_rbuffer_pos = 0;
+
         public byte m_bTargetPort;
 
         private Logger objLogger;
@@ -96,6 +99,34 @@ namespace bendodatasrv
                 Console.WriteLine("Serial port configuration is failed. (" + m_LinkPortName + ", " + m_LinkBaudrate + ")");
                 objLogger.LogWrite("Serial port configuration is failed. (" + m_LinkPortName + ", " + m_LinkBaudrate + ")");
                 return 0;
+            }
+        }
+
+        private void DataReceivedHandler(object client, SerialDataReceivedEventArgs e)
+        {
+            SerialPort server = (SerialPort)client;
+            int sv;
+
+            while (server.BytesToRead > 0)
+            {
+                sv = server.ReadByte();
+
+                if (sv == STX) // 
+                {
+                    link_rbuffer_pos = 0;
+                }
+
+                link_rbuffer[link_rbuffer_pos] = (byte)sv;
+                link_rbuffer_pos++;
+
+                if (sv == ETX)
+                {
+                    link_rbuffer[link_rbuffer_pos] = 0x00;
+                    this.putToBuff(ByteToString(link_rbuffer));
+
+                    link_rbuffer_pos = 0;
+                }
+
             }
         }
 
