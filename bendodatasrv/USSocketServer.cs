@@ -82,6 +82,20 @@ namespace bendodatasrv
             return retVal;
         }
 
+        public int ResetPort()
+        {
+            return PortClose();
+        }
+
+        private int PortClose()
+        {
+            if (m_bLinkComIsOpen)
+            {
+                m_LinkComSv.Close();
+            }
+            return 0;
+        }
+
         private int PortOpen()
         {
             try
