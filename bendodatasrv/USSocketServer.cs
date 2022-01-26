@@ -59,6 +59,9 @@ namespace bendodatasrv
         private static string rbuf = string.Empty;
         private static bool b_rbuf = false;
 
+        private Thread m_pThdLink;
+        private static bool m_bLinkLooping = false;
+
         static Stopwatch stopwatch = new Stopwatch();
         static Stopwatch stopwatchTHR = new Stopwatch();
 
@@ -218,6 +221,30 @@ namespace bendodatasrv
 
             LinkComSv.ReleaseMutex();
             return buf;
+        }
+
+        public void StartThread()
+        {
+            if (!m_bLinkComIsOpen)
+            {
+                Console.WriteLine("Com SRV Not Opened!");
+            }
+
+            lock (this)
+            {
+                m_bLinkLooping = true;
+            }
+
+            m_pThdLink = new Thread(LinkThreadLoop);
+            m_pThdLink.Start();
+        }
+
+        public void StopThread()
+        {
+            lock (this)
+            {
+                m_bLinkLooping = false;
+            }
         }
 
         public void SendMessage(String message)
