@@ -49,6 +49,7 @@ namespace bendodatasrv
 
         private string m_LinkPortName = "COM3";
         private int m_LinkBaudrate = 9600;
+        private static bool m_bLinkComIsOpen = false;
 
         public byte m_bTargetPort;
 
@@ -64,6 +65,39 @@ namespace bendodatasrv
 
         }
 
+        public int SetPort(string pName, int baud)
+        {
+            int retVal = 0;
+            m_LinkPortName = pName;
+            m_LinkBaudrate = baud;
+
+            retVal = PortOpen();
+            return retVal;
+        }
+
+        private int PortOpen()
+        {
+            try
+            {
+                m_LinkComSv = new SerialPort(m_LinkPortName, m_LinkBaudrate, Parity.None, 8, StopBits.One);
+                m_LinkComSv.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
+
+                m_LinkComSv.ReadTimeout = 200;
+                m_LinkComSv.Open();
+                m_bLinkComIsOpen = true;
+
+                Console.WriteLine("Serial port configuration is successful. (" + m_LinkPortName + ", " + m_LinkBaudrate + ")");
+                objLogger.LogWrite("Serial port configuration is successful. (" + m_LinkPortName + ", " + m_LinkBaudrate + ")");
+                return 1;
+            }
+
+            catch (Exception ex)
+            {
+                Console.WriteLine("Serial port configuration is failed. (" + m_LinkPortName + ", " + m_LinkBaudrate + ")");
+                objLogger.LogWrite("Serial port configuration is failed. (" + m_LinkPortName + ", " + m_LinkBaudrate + ")");
+                return 0;
+            }
+        }
 
 
         public void SendMessage(String message)
