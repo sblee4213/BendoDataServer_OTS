@@ -70,16 +70,12 @@ namespace bendodatasrv
         private AsyncCallback m_fnSendHandler;
         private AsyncCallback m_fnAcceptHandler;
         private Logger objLogger;
-        private CommOrientationSensor objIMU;
-        private CommPositionSensor objPos;
         private FrameCapture objFrame;
 
         private USSocketServer()
         {
             // 비동기 작업에 사용될 대리자를 초기화합니다.
             objLogger = Logger.Instance;
-            objIMU = CommOrientationSensor.Instance;
-            objPos = CommPositionSensor.Instance;
             objFrame = FrameCapture.Instance;
 
             m_fnReceiveHandler = new AsyncCallback(handleDataReceive);
@@ -283,13 +279,6 @@ namespace bendodatasrv
             {
                 switch (cmd)
                 {
-                    case CMD_SENSOR_CONF_REQ:
-                        Console.WriteLine("<< CMD_SENSOR_CONF_REQ");
-                        objLogger.LogWrite("[RX]CMD_SENSOR_CONF_REQ|"+Encoding.ASCII.GetString(msg));
-                        int res = ParsingSensorConf(ref msg);
-                        ResponseSensorConf(res);
-                        break;
-
                     case CMD_US_POS_START_REQ: //통신연결 후 초기 위치 확인용 '초음파 진단부 위치 전송 시작요청'
                         Console.WriteLine("<< CMD_US_POS_START_REQ");
                         objLogger.LogWrite("[RX]CMD_US_POS_START_REQ");
@@ -340,22 +329,6 @@ namespace bendodatasrv
                         ParsingUSRoiSaveDir(ref msg, dataLen); // 초음파 스캔 시작 시 지정하는 경로를 변경하도록 우선 설정(추후 분리 필요)
                         objFrame.GetUSFrameForRoi();
                         break;
-/*
-                    case CMD_ES_START_REQ: // '내시경 영상 전송 시작 요청(저장경로 설정)'
-                        Console.WriteLine("<< CMD_ES_START_REQ");
-                        objLogger.LogWrite("[RX]CMD_ES_START_REQ");
-                        objFrame.SetCaptureMode(FrameCapture.SCAN_ES);
-                        ParsingESSaveDir(ref msg, dataLen);
-                        objFrame.StartCatpure();
-                        break;
-
-                    case CMD_ES_STOP_REQ: // '내시경 영상 전송 시작 요청(저장경로 설정)'
-                        Console.WriteLine("<< CMD_ES_STOP_REQ");
-                        objLogger.LogWrite("[RX]CMD_ES_STOP_REQ");
-                        ParsingESSaveDir(ref msg, dataLen);
-                        objFrame.StopCatpure();
-                        break;
-                        */
                 }
             }
         }
@@ -372,24 +345,7 @@ namespace bendodatasrv
         //  
         //  수신 메시지에서 두 쌍의 COM PORT번호, BAUDRATE 값을 추출하여 IMU센서와 위치센서 연결
         //-------------------------------------------------------------------------------
-        private int ParsingSensorConf(ref byte[] msg)
-        {
-            int result1 = 0;
-            int result2 = 0;
 
-            CommOrientationSensor objIMU = CommOrientationSensor.Instance;
-            CommPositionSensor objPosition = CommPositionSensor.Instance;
-            byte[] baud = new byte[6];
-            string imuPort = string.Format("COM{0}",((msg[7] - 0x30) * 10) + (msg[8] - 0x30));
-            Buffer.BlockCopy(msg, 9, baud, 0, 6);
-            result1 = objIMU.SetPort(imuPort, int.Parse(ByteToString(baud)));
-
-            string posPort = string.Format("COM{0}", ((msg[15] - 0x30) * 10) + (msg[16] - 0x30));
-            Buffer.BlockCopy(msg, 17, baud, 0, 6);
-            result2 = objPosition.SetPort(posPort, int.Parse(ByteToString(baud)));
-
-            return result1 + result2;
-        }
 
         //-------------------------------------------------------------------------------
         //  초음파 RoI 설정

@@ -49,21 +49,12 @@ namespace bendodatasrv
                 Console.WriteLine("OTS is not connected.");
             }
 #endif
-            CommPositionSensor objPos = CommPositionSensor.Instance;
 
             USSocketServer objUSSocketServer = USSocketServer.Instance;
             objLogger.LogWrite("US socket server is started.");
 
-            ESSocketServer objESSocketServer = ESSocketServer.Instance;
-            objLogger.LogWrite("ES socket server is started.");
 
             objUSSocketServer.StartServer(1234);
-            objESSocketServer.StartServer(2345);
-
-            /*if (objPos.SetPort("COM8", 9600) == 1) {
-                objPos.CounterInit();
-                objPos.StartThread();
-            }*/
             
 
             while (true)
@@ -85,13 +76,6 @@ namespace bendodatasrv
                     }
                     objLogger.LogWrite("US socket server is stoped.");
 
-                    if (objESSocketServer.mIsSocketConnected)
-                    {
-                        objESSocketServer.StopServer();
-                    }
-                    objLogger.LogWrite("ES socket server is stoped.");
-                    objLogger.CloseLog();
-                    return;
                 }
             }
         }

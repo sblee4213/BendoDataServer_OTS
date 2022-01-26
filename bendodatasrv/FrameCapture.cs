@@ -70,9 +70,6 @@ namespace bendodatasrv
 
         private Logger objLogger;
         private USSocketServer objUSSocket;
-        private ESSocketServer objESSocket;
-        private CommOrientationSensor objIMU;
-        private CommPositionSensor objPos;
 
         private Rectangle m_RoiRect;
         private Bitmap m_BMP;
@@ -303,9 +300,6 @@ namespace bendodatasrv
             m_isCapture = true;
 
             objUSSocket = USSocketServer.Instance;
-            objESSocket = ESSocketServer.Instance;
-            objIMU = CommOrientationSensor.Instance;
-            objPos = CommPositionSensor.Instance;
 
             if (GetCaptureMode() != SCAN_ES)
             {
@@ -322,8 +316,6 @@ namespace bendodatasrv
         {
             //m_cvVideoStream.Release();
             m_isCapture = false;
-            objIMU.StopThread();
-            objPos.StopThread();
             SetCaptureMode(NONE);
             mTimer.Stop();
 
@@ -381,7 +373,6 @@ namespace bendodatasrv
             }
             else
             {
-                CalibrationOriPos();
             }
 
 #if OTS
@@ -411,7 +402,6 @@ namespace bendodatasrv
 
         public void GetPortPosition()
         {
-            CalcOriPos(objUSSocket.m_bTargetPort);
             objUSSocket.ResponsePortPosition(rotProbeHolder, posProbeHolder);
         }
 
@@ -425,7 +415,6 @@ namespace bendodatasrv
                 fName = String.Format("{0,4:D4}", m_ImgSeq);
                 m_cvVideoStream.Read(m_cvFrm);
                 
-                CalcOriPos(1);
 
                 m_cvUSFrm = new Mat(m_cvFrm, m_cvRoiRect);// WARNING!!! ORIGIN SIZE & ROI SIZE  
                 m_cvUSFrm.SaveImage(mUSPath + "\\" + fName+".jpg");
@@ -555,7 +544,6 @@ namespace bendodatasrv
                     m_cvVideoStream.Read(m_cvFrm);
                     m_cvUSFrm = new Mat(m_cvFrm, m_cvRoiRect);// WARNING!!! ORIGIN SIZE & ROI SIZE  
                     m_cvUSFrm.SaveImage(mESPath + "\\" + fName);
-                    objESSocket.ResponseESScan(fName);
                 }
             }
             else
@@ -563,56 +551,11 @@ namespace bendodatasrv
                 Mat tmp = new Mat(m_esSimImages[m_esSimImgIdx].FullName, ImreadModes.Color);
                 tmp.SaveImage(mESPath + "\\" + fName);
                 m_esSimImgIdx++;
-                objESSocket.ResponseESScan(fName);
             }
         }
 
         // 위치 센서, IMU센서 사용 시 아래 부분 내용 사용됨
-        public void CalcOriPos(byte guideNumber) {
-            Quaternion imuSenRGuide = Quaternion.Identity;
-            Quaternion imuSenProbeHolder = Quaternion.Identity;
-
-            if (guideNumber == 1)
-            {
-                imuSenRGuide = objIMU.GetQuat1stRGuide();
-                imuSenProbeHolder = objIMU.GetQuat1stProbeHolder();
-            }
-            else
-            {
-                imuSenRGuide = objIMU.GetQuat2ndRGuide();
-                imuSenProbeHolder = objIMU.GetQuat2ndProbeHolder();
-            }
-
-            
-            Quaternion quatRGuide = Quaternion.Identity;
-
-            float depthFromRG = 0.0f;
-            float axialLength = 0.0f;
-            
-            Vector3 axialLenVector = Vector3.Zero; //Z 축방향 길이
-            Vector3 ballJointPos = Vector3.Zero; //ball joint의 위치
-            
-            Vector3 rpyRGuide = ToEulerAngles(imuSenRGuide);
-            Vector3 rpyProbeHolder = ToEulerAngles(imuSenProbeHolder);
-
-            // position part ==========================================================
-            axialLength = (objPos.GetLehgth() * m_fScaleFactor) + m_fScaledDofCH;
-            axialLenVector = Vector3.UnitZ * axialLength;
-
-            depthFromRG = objPos.GetDepth() * m_fScaleFactor;
-            //quatRGuide = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, ((360.0f * (float)Math.PI / 180.0f) - rpyRGuide.Y));
-            quatRGuide = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, (((float)Math.PI / 180.0f) + rpyRGuide.Y));
-
-            //ballJointPos = Vector3.Add( Vector3.Transform((Vector3.UnitY * (m_fScaledRofRG - (m_fScaledDofDO2JC + depthFromRG))), quatRGuide),(Vector3.UnitZ * (axialLength - m_fScaledDofRG2JC)));
-            ballJointPos = Vector3.Add( Vector3.Transform((Vector3.UnitY * ((m_fScaledRofRG + m_fScaledDofDR) - (m_fScaledDofDO2JC + depthFromRG))), quatRGuide), (Vector3.UnitZ * (axialLength + m_fScaledDofRG2JC)));
-
-            // rotation part ==========================================================
-            rotProbeHolder = Quaternion.Multiply(m_qPHoffsetQuat, Quaternion.CreateFromYawPitchRoll(rpyProbeHolder.Y, -rpyProbeHolder.X, rpyProbeHolder.Z));
-            posProbeHolder = Vector3.Subtract(ballJointPos, Vector3.Transform(m_distVecJC2HC, rotProbeHolder));
-
-            //objLogger.LogWrite("pos PH = "+posProbeHolder.Z+"| Length offset = " + m_fLenOffset);
-            posProbeHolder.Z += m_fLenOffset;
-        }
+ 
 
         private bool AssetValues(Quaternion rg, Quaternion ph, float depth, float length) {
             bool retVal = false;
@@ -628,194 +571,6 @@ namespace bendodatasrv
             }
             return retVal;
         }
-
-        public void CalibrationOriPos()
-        {
-            Quaternion imuSenRGuide = objIMU.GetQuat1stRGuide();
-            Quaternion imuSenProbHolder = objIMU.GetQuat1stProbeHolder();
-            float posSenLength = objPos.GetLehgth();
-            float posSenDepth = objPos.GetDepth();
-
-            Quaternion quatRGuide = Quaternion.Identity;
-            float depthFromRG = 0.0f;
-            float axialLength = 0.0f;
-
-            Vector3 axialLenVector = Vector3.Zero; //Z 축방향 길이
-            Vector3 ballJointPos = Vector3.Zero; //ball joint의 위치
-            Vector3 rpyRGuide = Vector3.Zero;
-            Vector3 rpyProbeHolder = Vector3.Zero;
-
-            if (m_noDummyRead > 0)
-            {
-                objLogger.LogWrite("Dummy read for stabilizing["+m_noDummyRead+"]");
-                m_noDummyRead--;
-            }
-            else
-            {
-                if (AssetValues(imuSenRGuide, imuSenProbHolder, posSenDepth, posSenLength))
-                {
-                    // Ok to go
-                    rpyRGuide = ToEulerAngles(imuSenRGuide);
-                    rpyProbeHolder = ToEulerAngles(imuSenProbHolder);
-
-                    // position part ==========================================================
-                    axialLength = (objPos.GetLehgth() * m_fScaleFactor) + m_fScaledDofCH;
-                    axialLenVector = Vector3.UnitZ * axialLength;
-
-                    depthFromRG = objPos.GetDepth() * m_fScaleFactor;
-                    //quatRGuide = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, ((360.0f * (float)Math.PI / 180.0f) - rpyRGuide.Y));
-                    quatRGuide = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, (((float)Math.PI / 180.0f) + rpyRGuide.Y));
-
-                    //ballJointPos = Vector3.Add(Vector3.Transform((Vector3.UnitY * (m_fScaledRofRG - (m_fScaledDofDO2JC + depthFromRG))), quatRGuide), (Vector3.UnitZ * (axialLength - m_fScaledDofRG2JC)));
-                    ballJointPos = Vector3.Add(Vector3.Transform((Vector3.UnitY * ((m_fScaledRofRG + m_fScaledDofDR) - (m_fScaledDofDO2JC + depthFromRG))), quatRGuide), (Vector3.UnitZ * (axialLength + m_fScaledDofRG2JC)));
-
-
-                    // rotation part ==========================================================
-                    //
-                    // - calibration reference code
-                    //
-                    //    OffsetAdjust = quat.eulerAngles.y;
-                    //    OffsetAdjust -= 90;
-                    //    if (OffsetAdjust > 180) OffsetAdjust = OffsetAdjust - 360;
-                    //    else if (OffsetAdjust < -180) OffsetAdjust = OffsetAdjust + 360;
-                    //    EbmPort.Write("<??cmo>");
-
-                    /* origin code 20191018 ykpark - for 1st equip
-                    if (!m_bIsRotCalib)
-                    {
-                        m_fYawOffset = (180.0f * (float)Math.PI / 180.0f) - rpyProbeHolder.Y;
-                        if (m_fYawOffset > (180.0f * (float)Math.PI / 180.0f))
-                        {
-                            m_fYawOffset = m_fYawOffset - (360.0f * (float)Math.PI / 180.0f);
-                        }
-                        else if (m_fYawOffset < -(180.0f * (float)Math.PI / 180.0f))
-                        {
-                            m_fYawOffset = m_fYawOffset + (360.0f * (float)Math.PI / 180.0f);
-                        }
-
-                        m_qPHoffsetQuat = Quaternion.CreateFromYawPitchRoll(m_fYawOffset, rpyProbeHolder.X, rpyProbeHolder.Z);
-                        m_bIsRotCalib = true;
-                    }
-                    */
-                    if (!m_bIsRotCalib)
-                    {
-                        m_fYawOffset = (180.0f * (float)Math.PI / 180.0f) - rpyProbeHolder.Y;
-                        if (m_fYawOffset > (180.0f * (float)Math.PI / 180.0f))
-                        {
-                            m_fYawOffset = m_fYawOffset - (360.0f * (float)Math.PI / 180.0f);
-                        }
-                        else if (m_fYawOffset < -(180.0f * (float)Math.PI / 180.0f))
-                        {
-                            m_fYawOffset = m_fYawOffset + (360.0f * (float)Math.PI / 180.0f);
-                        }
-
-                        //m_qPHoffsetQuat = Quaternion.CreateFromYawPitchRoll(m_fYawOffset, rpyProbeHolder.Z, rpyProbeHolder.X);
-                        //m_qPHoffsetQuat = Quaternion.CreateFromYawPitchRoll(m_fYawOffset, rpyProbeHolder.Z, rpyProbeHolder.X);
-                        m_qPHoffsetQuat = Quaternion.CreateFromYawPitchRoll(m_fYawOffset, 0.0f, 0.0f);
-                        m_bIsRotCalib = true;
-                    }
-                    //rotProbeHolder = Quaternion.Multiply(m_qPHoffsetQuat, imuSenProbHolder);
-                    rotProbeHolder = Quaternion.Multiply(m_qPHoffsetQuat, Quaternion.CreateFromYawPitchRoll(rpyProbeHolder.Y, -rpyProbeHolder.X, rpyProbeHolder.Z));
-                    //rotProbeHolder = Quaternion.Multiply(imuSenProbHolder, m_qPHoffsetQuat);
-                    posProbeHolder = Vector3.Subtract(ballJointPos, Vector3.Transform(m_distVecJC2HC, rotProbeHolder));
-                    //posProbeHolder = Vector3.Add(ballJointPos, Vector3.Transform(m_distVecJC2HC, rotProbeHolder));
-
-                    if (!m_bIsPosCalib)
-                    {
-                        m_fLenOffset = posProbeHolder.Z * -1.0f;
-                        objLogger.LogWrite("pos PH = " + posProbeHolder.Z + "| Length offset = " + m_fLenOffset);
-                        m_bIsPosCalib = true;
-                    }
-                    posProbeHolder.Z += m_fLenOffset;
-                }
-                else
-                {
-                    // skip
-                }
-            }
-        }
-        /* ----------------- origin backup 20190903
-        public void CalcOriPos()
-        {
-            Quaternion rguideSenVal = objIMU.GetQuatRGuide();
-            Quaternion probeHolderSenVal = objIMU.GetQuatProbeHolder();
-            Quaternion quatRGuide;
-
-            float depthFromRG;
-            float axialLength;
-            //float depthFromRG= objPos.GetDepth();
-            //float axialLength= objPos.GetLehgth();
-
-            Vector3 axialLenVector; //Z 축방향 길이
-            Vector3 ballJointPos; //ball joint의 위치
-
-            Vector3 rpyRGuide = ToEulerAngles(rguideSenVal);
-            Vector3 rpyProbeHolder = ToEulerAngles(probeHolderSenVal);
-
-            // position part ==========================================================
-            axialLength = (objPos.GetLehgth() * m_fScaleFactor) + m_fScaledDofCH;
-            axialLenVector = Vector3.UnitZ * axialLength;
-            //Console.WriteLine("axial len:{0}\t|\t len vector:({1},{2},{3})", axialLength, axialLenVector.X, axialLenVector.Y, axialLenVector.Z);
-
-            depthFromRG = objPos.GetDepth() * m_fScaleFactor;
-            //quatRGuide = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, ((360.0f * (float)Math.PI / 180.0f) - rpyRGuide.X));
-            quatRGuide = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, ((360.0f * (float)Math.PI / 180.0f) - rpyRGuide.X));
-
-            //ballJointPos = Vector3.Transform((Vector3.UnitY * (m_fScaledRofRG - (m_fScaledDofDO2JC + depthFromRG))), quatRGuide) + (Vector3.UnitZ * (axialLength - m_fScaledDofRG2JC));
-            ballJointPos = Vector3.Add(Vector3.Transform((Vector3.UnitY * (m_fScaledRofRG - (m_fScaledDofDO2JC + depthFromRG))), quatRGuide), (Vector3.UnitZ * (axialLength - m_fScaledDofRG2JC)));
-            //Console.WriteLine("ball joint position = ({0},{1},{2})", ballJointPos.X, ballJointPos.Y, ballJointPos.Z);
-            //m_goBallJoint.transform.position = m_qtnGuide * (Vector3.UnitY * (m_fScaledRofRG - (m_fScaledDofDO2JC + depthFromRG))) + (Vector3.UnitZ * (axialLength - m_fScaledDofRG2JC));
-
-
-            // rotation part ==========================================================
-            if (!m_bIsRotCalib)
-            {
-                if (rguideSenVal.X != 0.0f && probeHolderSenVal.X != 0.0f)
-                {
-                    m_fYawOffset = (180.0f * (float)Math.PI / 180.0f) - rpyProbeHolder.Y;
-                    if (m_fYawOffset > (180.0f * (float)Math.PI / 180.0f))
-                    {
-                        m_fYawOffset = m_fYawOffset - (360.0f * (float)Math.PI / 180.0f);
-                    }
-                    else if (m_fYawOffset < -(180.0f * (float)Math.PI / 180.0f))
-                    {
-                        m_fYawOffset = m_fYawOffset + (360.0f * (float)Math.PI / 180.0f);
-                    }
-
-                    //Console.WriteLine("radians:({0},{1},{2})", rpyProbeHolder.X, rpyProbeHolder.Y, rpyProbeHolder.Z);
-
-                    m_qPHoffsetQuat = Quaternion.CreateFromYawPitchRoll(m_fYawOffset, rpyProbeHolder.X, rpyProbeHolder.Z);
-                    //m_qtnCalib = Quaternion.Euler(new Vector3(rpyprobeHolder.X, m_fYawOffset, rpyprobeHolder.Z));
-
-                    //m_goCube.transform.rotation = m_qtnCalib;
-                    rotProbeHolder = m_qPHoffsetQuat;
-                    //Console.WriteLine("calib rotQ:({0},{1},{2},{3})", rotProbeHolder.X, rotProbeHolder.Y, rotProbeHolder.Z, rotProbeHolder.W);
-
-                    m_bIsRotCalib = true;
-
-                    //Console.WriteLine("calibated.");
-                }
-            }
-            else
-            {
-                //rotProbeHolder = Quaternion.Multiply(m_qPHoffsetQuat, probeHolderSenVal);
-                rotProbeHolder = Quaternion.Multiply(m_qPHoffsetQuat, probeHolderSenVal);
-            }
-
-            posProbeHolder = Vector3.Subtract(ballJointPos, Vector3.Transform(m_distVecJC2HC, rotProbeHolder));
-
-            if (!m_bIsPosCalib)
-            {
-                m_fLenOffset = posProbeHolder.Z * -1.0f;
-                m_bIsPosCalib = true;
-
-            }
-
-            objLogger.LogWrite("pos PH = " + posProbeHolder.Z + "| Length offset = " + m_fLenOffset);
-            posProbeHolder.Z += m_fLenOffset;
-
-            //Console.WriteLine("rotQ:({0},{1},{2},{3})\t|\tpos:({4},{5},{6})", rotProbeHolder.X, rotProbeHolder.Y, rotProbeHolder.Z, rotProbeHolder.W, posProbeHolder.X, posProbeHolder.Y, posProbeHolder.Z);
-        }*/
 
         public void DoScreenCapture(string filename)
         {
