@@ -65,15 +65,7 @@ namespace bendodatasrv
                     continue;
 
                 // 입력받은 문자열이 X 인 경우, 프로그램을 종료한다.
-                if (msg.Equals("X"))
-                {
-                    if (objUSSocketServer.mIsSocketConnected)
-                    {
-                        
-                    }
-                    objLogger.LogWrite("US socket server is stoped.");
 
-                }
             }
         }
 

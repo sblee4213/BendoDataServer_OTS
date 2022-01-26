@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using OpenCvSharp;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -36,6 +36,7 @@ namespace bendodatasrv
         public string deviceName;
         private int devId = 1;
 
+        public int LoggerFlag = 0;
         public int LinkPortN = 1;
         public int LinkPortSpeed = 57600;
 
@@ -111,7 +112,7 @@ namespace bendodatasrv
 
         private float m_fYawOffset;
 
-        private Stopwatch stopwatch;
+        private Stopwatch stopwatchAck;
 
         private System.Timers.Timer mTimer;
 
@@ -132,6 +133,10 @@ namespace bendodatasrv
         private byte m_noDummyRead = 3;
 
         private bool isTestMode = false;
+
+        private Thread m_pThdMaker;
+        private static bool m_bMakerLooping = false;
+        private static bool MakerPause = true;
 
 #if OTS
         private string tspPath = AppDomain.CurrentDomain.BaseDirectory + "Tsp.txt";
@@ -197,7 +202,7 @@ namespace bendodatasrv
             mTimer.Elapsed += TimerFired;
             m_isCapture = false;
             m_isRoISet = false;
-            stopwatch = new Stopwatch(); //객체 선언;
+            stopwatchAck = new Stopwatch(); //객체 선언;
 
             m_cvVideoStream = new VideoCapture();
             m_cvVideoStream.Open(0);
@@ -246,6 +251,60 @@ namespace bendodatasrv
         }
         */
 
+        public void FCinit(string FilePath)
+        {
+            mTimer = new System.Timers.Timer();
+            mTimer.Interval = ReadConfigSet(FilePath);
+
+            m_isCapture = false;
+
+            stopwatchAck = new Stopwatch();
+
+            m_mat2str = new StringBuilder();
+
+        }
+
+        private double ReadConfigSet(string path)
+        {
+            int res = 0;
+            double intv = 50;
+            m_confFilePath = path + "confs.ini";
+
+            StringBuilder tmp = new StringBuilder(10);
+
+            res = GetPrivateProfileString("Logger", "Record", "0", tmp, 10, m_confFilePath);
+            LoggerFlag = int.Parse(tmp.ToString());
+            if (LoggerFlag == 1)
+                objLogger = Logger.Instance;
+
+            //Get sampling period from configuration file
+            GetPrivateProfileString("Timer", "Interval", "33", tmp, 10, m_confFilePath);//Confs.ini에서 설정읽기
+            intv = 50;
+
+
+            GetPrivateProfileString("Scaling", "Factor", "0.01", tmp, 10, m_confFilePath);
+            m_fScaleFactor = float.Parse(tmp.ToString());
+
+            GetPrivateProfileString("Mode", "Test", "0", tmp, 1024, m_confFilePath);
+            if (tmp.ToString() == "1")
+            {
+                isTestMode = true;
+            }
+            else
+            {
+                isTestMode = false;
+            }
+
+            GetPrivateProfileString("GSLink", "COM", "0", tmp, 10, m_confFilePath);
+            LinkPortN = int.Parse(tmp.ToString());
+            GetPrivateProfileString("GSLink", "Speed", "0", tmp, 10, m_confFilePath);
+            LinkPortSpeed = int.Parse(tmp.ToString());
+            Console.WriteLine("COM{0}, Speed={1}", LinkPortN, LinkPortSpeed);
+
+            return intv;
+
+        }
+
         public void SetCaptureMode(byte type)
         {
             lock (this)
@@ -292,6 +351,66 @@ namespace bendodatasrv
 
         }
 
+        public void StartMaker()
+        {
+            objUSSocket = USSocketServer.Instance;
+
+            lock (this)
+            {
+                m_bMakerLooping = true;
+            }
+
+            MakerPause = true;
+
+            m_pThdMaker = new Thread(MakerThreadLoop);
+            stopwatchAck.Start();
+            m_pThdMaker.Start();
+
+        }
+
+        public void StopMaker()
+        {
+            SetCaptureMode(NONE);
+
+            stopwatchAck.Stop();
+            lock (this)
+            {
+                m_bMakerLooping = false;
+            }
+
+            if (MakerPause == false)
+            {
+                Thread.Sleep(200);
+            }
+            MakerPause = true;
+            m_ImgSeq = 0;
+        }
+
+        private bool IsMakerLooping()
+        {
+            lock (this)
+            {
+                return m_bMakerLooping;
+            }
+        }
+
+        public void MakerThreadLoop()
+        {
+            while (IsMakerLooping())
+            {
+                if ((stopwatchAck.ElapsedMilliseconds) >= mTimer.Interval)
+                {
+                    stopwatchAck.Restart();
+
+                    switch (GetCaptureMode())
+                    {
+
+                    }
+                    MakerPause = false;
+                }
+            }
+        }
+
         public void SetESStorePath(string path)
         {
             System.IO.Directory.CreateDirectory(path);
@@ -324,6 +443,7 @@ namespace bendodatasrv
 
             m_ImgSeq = 0;
         }
+
 
         private void TimerFired(object sender, System.Timers.ElapsedEventArgs e)
         {
