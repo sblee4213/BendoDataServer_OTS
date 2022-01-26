@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Net;
 using System.Numerics;
+using System.IO.Ports;
 
 
 
@@ -17,8 +18,8 @@ namespace bendodatasrv
         public static USSocketServer Instance { get { return lazy.Value; } }
 
         public string mUSPath;
-        public string mESPath;
-        public bool mIsSocketConnected;
+        private static SerialPort m_LinkComSv;
+
 
         private byte FIXEDLen = 8; //STX(1) + DIR(1) + CMD(1) + DATALEN(4) + ETX(1)
 
@@ -34,7 +35,6 @@ namespace bendodatasrv
         private const byte CMD_US_SCAN_ROI_RES = 0x6F;
 
         private const byte CMD_US_POS_START_REQ = 0x64;
-        //private const byte CMD_US_POS_RES = 0x64;
         private const byte CMD_US_POS_STOP_REQ = 0x74;
 
         private const byte CMD_US_SCAN_START_REQ = 0x73;
@@ -45,18 +45,13 @@ namespace bendodatasrv
         private const byte CMD_POINT_RES = 0x70;
         private const byte CMD_POINT_STOP_REQ = 0x71;
 
-        private const byte CMD_ES_START_REQ = 0x69;
-        private const byte CMD_ES_RES = 0x69;
-        private const byte CMD_ES_STOP_REQ = 0x72;
-
         private const byte ETX = 0x03;
+
+        private string m_LinkPortName = "COM3";
+        private int m_LinkBaudrate = 9600;
 
         public byte m_bTargetPort;
 
-
-        private AsyncCallback m_fnReceiveHandler;
-        private AsyncCallback m_fnSendHandler;
-        private AsyncCallback m_fnAcceptHandler;
         private Logger objLogger;
         private FrameCapture objFrame;
 
@@ -66,10 +61,7 @@ namespace bendodatasrv
             objLogger = Logger.Instance;
             objFrame = FrameCapture.Instance;
 
-            m_fnReceiveHandler = new AsyncCallback(handleDataReceive);
-            m_fnSendHandler = new AsyncCallback(handleDataSend);
-            m_fnAcceptHandler = new AsyncCallback(handleClientConnectionRequest);
-            mIsSocketConnected = false;
+
         }
 
 
