@@ -247,6 +247,52 @@ namespace bendodatasrv
             }
         }
 
+        public bool IsLinkLooping()
+        {
+            lock (this)
+            {
+                return m_bLinkLooping;
+            }
+        }
+
+        public void LinkThreadLoop()
+        {
+            if (!m_LinkComSv.IsOpen)
+            {
+                PortOpen();
+            }
+
+            if (m_LinkComSv.IsOpen)
+            {
+                lock (this)
+                {
+                    m_bLinkComIsOpen = true;
+                }
+
+                m_LinkComSv.DiscardOutBuffer();
+                m_LinkComSv.DiscardInBuffer();
+            }
+
+            while (IsLinkLooping())
+            {
+                string result = null;
+                if ((stopwatchTHR.ElapsedMilliseconds) >= 99) //to client
+                {
+                    //msec = stopwatchTHR.ElapsedMilliseconds;
+                    stopwatchTHR.Restart();                    // Read from Receiver
+                                                               //result = ReadFromS(m_ComSv.ReadTimeout);
+                    result = ReadBuff();
+
+                }
+
+                if (result != null)
+                {
+                    MessageParsing(StringToByte(result));
+                }
+
+            }
+        }
+
         public void SendMessage(String message)
         {
             // 추가 정보를 넘기기 위한 변수 선언
