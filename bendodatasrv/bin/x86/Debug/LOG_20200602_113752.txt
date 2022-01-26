@@ -1,9 +1,0 @@
-11:37:55.210	OTS is connected.
-11:37:55.811	US socket server is started.
-11:37:55.813	ES socket server is started.
-11:37:55.838	US Socket created
-11:37:55.839	Port bined
-11:37:55.839	US Socket listening ... 
-11:37:55.841	ES Socket created
-11:37:55.842	Port bined
-11:37:55.842	ES Socket listening ... 

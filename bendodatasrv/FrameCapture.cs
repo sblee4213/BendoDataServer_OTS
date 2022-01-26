@@ -27,6 +27,7 @@ namespace bendodatasrv
 
         //private string m_confFilePath = @"C:\\Knu\\BendoDataServer\\conf.ini"; 
         private string m_confFilePath = AppDomain.CurrentDomain.BaseDirectory + "conf.ini";
+        private string m_testFilePath = @"C:\\Knu\\ustest\\output";
 
         private static readonly Lazy<FrameCapture> lazy = new Lazy<FrameCapture>(() => new FrameCapture());
 
@@ -117,8 +118,10 @@ namespace bendodatasrv
         private Quaternion m_qPHoffsetQuat;
         private float m_fLenOffset;
 
+        // rotProbeHolder, posProbeHolder의 내용을 클라이언트로 전송함
         private Quaternion rotProbeHolder;
         private Vector3 posProbeHolder;
+
         private Matrix4x4 m_usFrameMat;
 
         private StringBuilder m_mat2str;
@@ -127,6 +130,8 @@ namespace bendodatasrv
         private int m_esSimImgIdx;
 
         private byte m_noDummyRead = 3;
+
+        private bool isTestMode = false;
 
 #if OTS
         private string tspPath = AppDomain.CurrentDomain.BaseDirectory + "Tsp.txt";
@@ -178,7 +183,17 @@ namespace bendodatasrv
                 DirectoryInfo d = new DirectoryInfo(tmp.ToString());
                 m_esSimImages = d.GetFiles("*.jpg");
             }
-            
+
+            GetPrivateProfileString("Mode", "Test", "0", tmp, 1024, m_confFilePath);
+            if (tmp.ToString() == "1")
+            {
+                isTestMode = true;
+            }
+            else
+            {
+                isTestMode = false;
+            }
+
             mTimer.Elapsed += TimerFired;
             m_isCapture = false;
             m_isRoISet = false;
@@ -294,9 +309,11 @@ namespace bendodatasrv
 
             if (GetCaptureMode() != SCAN_ES)
             {
+#if !OTS
                 // IMU, 위치센서 사용 시 활성화
-                //objIMU.StartThread();
-                //objPos.StartThread();
+                objIMU.StartThread();
+                objPos.StartThread(); 
+#endif
             }
             mTimer.Start();
         }
@@ -309,6 +326,8 @@ namespace bendodatasrv
             objPos.StopThread();
             SetCaptureMode(NONE);
             mTimer.Stop();
+
+            m_ImgSeq = 0;
         }
 
         private void TimerFired(object sender, System.Timers.ElapsedEventArgs e)
@@ -331,7 +350,59 @@ namespace bendodatasrv
 
         public void GetCalibration()
         {
-            CalibrationOriPos();
+            if (isTestMode)
+            {
+                string fName = "";
+
+                m_ImgSeq++;
+                fName = String.Format("{0,4:D4}", m_ImgSeq);
+                var dataFile = m_testFilePath + "\\" + fName + ".txt";
+
+                if (!File.Exists(dataFile))
+                {
+                    m_ImgSeq = 1;
+                    fName = String.Format("{0,4:D4}", m_ImgSeq);
+                    dataFile = m_testFilePath + "\\" + fName + ".txt";
+                }
+
+                try
+                {
+                    var allData = File.ReadAllText(m_testFilePath + "\\" + fName + ".txt");
+                    var data = allData.Split('\t');
+
+                    rotProbeHolder = new Quaternion(float.Parse(data[1]), float.Parse(data[2]), float.Parse(data[3]), float.Parse(data[0]));
+                    posProbeHolder = new Vector3(float.Parse(data[4]) * m_fScaleFactor, float.Parse(data[5]) * m_fScaleFactor, float.Parse(data[6]) * m_fScaleFactor);
+                }
+                catch (Exception)
+                {
+                    rotProbeHolder = new Quaternion(0, 0, 0, 0);
+                    posProbeHolder = new Vector3(0, 0, 0);
+                }
+            }
+            else
+            {
+                CalibrationOriPos();
+            }
+
+#if OTS
+            try
+            {
+                UpdateTransforms();
+                var matrix1 = GetMatrixTransform(0);
+                var matrix2 = GetMatrixTransform(1);
+
+                var t_WorldToSensor = ConvertTMarix(matrix1);
+
+                Mat t_WorldToProbe = t_WorldToSensor * t_SensorToProbe;
+
+                rotProbeHolder = MatrixToQuaternion(t_WorldToProbe);
+                posProbeHolder = new Vector3((float)t_WorldToProbe.Get<double>(0, 3) * m_fScaleFactor, (float)t_WorldToProbe.Get<double>(1, 3) * m_fScaleFactor, (float)t_WorldToProbe.Get<double>(2, 3) * m_fScaleFactor);
+            }
+            catch (Exception)
+            {
+            }
+#endif
+
             if (!posProbeHolder.X.Equals(float.NaN) && !posProbeHolder.Y.Equals(float.NaN) && !posProbeHolder.Z.Equals(float.NaN))
             {
                 objUSSocket.ResponsePosCalib(rotProbeHolder, posProbeHolder);
@@ -347,7 +418,7 @@ namespace bendodatasrv
         public void GetUSFrame()
         {
             String fName = "";
-            if (m_cvVideoStream.IsOpened() && m_isCapture)
+            if (m_cvVideoStream.IsOpened() && m_isCapture && !isTestMode)
             {
                 //stopwatch.Start();
                 m_ImgSeq++;
@@ -366,23 +437,39 @@ namespace bendodatasrv
                 m_usFrameMat.M44 = 1.0f;
 
 #if OTS
-                UpdateTransforms();
-                var matrix1 = GetMatrixTransform(0);
-                var matrix2 = GetMatrixTransform(1);
+                // OTS 사용 시 rotProbeHolder, posProbeHolder를 OTS 데이터로 대체
+                try
+                {
+                    UpdateTransforms();
+                    var matrix1 = GetMatrixTransform(0);
+                    var matrix2 = GetMatrixTransform(1);
 
-                var t_WorldToSensor = ConvertTMarix(matrix1);
+                    var t_WorldToSensor = ConvertTMarix(matrix1);
 
-                Mat t_WorldToProbe = t_WorldToSensor * t_SensorToProbe;
+                    Mat t_WorldToProbe = t_WorldToSensor * t_SensorToProbe;
 
-                rotProbeHolder = MatrixToQuaternion(t_WorldToProbe);
-                posProbeHolder = new Vector3((float)t_WorldToProbe.Get<double>(0, 3), (float)t_WorldToProbe.Get<double>(1, 3), (float)t_WorldToProbe.Get<double>(2, 3));
+                    rotProbeHolder = MatrixToQuaternion(t_WorldToProbe);
+                    posProbeHolder = new Vector3((float)t_WorldToProbe.Get<double>(0, 3) * m_fScaleFactor, (float)t_WorldToProbe.Get<double>(1, 3) * m_fScaleFactor, (float)t_WorldToProbe.Get<double>(2, 3) * m_fScaleFactor);
 
-                m_mat2str.Clear();
-                m_mat2str.Append(t_WorldToProbe.Get<double>(0, 0) + " " + t_WorldToProbe.Get<double>(0, 1) + " " + t_WorldToProbe.Get<double>(0, 2) + " " + t_WorldToProbe.Get<double>(0, 3) + ", ");
-                m_mat2str.Append(t_WorldToProbe.Get<double>(1, 0) + " " + t_WorldToProbe.Get<double>(1, 1) + " " + t_WorldToProbe.Get<double>(1, 2) + " " + t_WorldToProbe.Get<double>(1, 3) + ", ");
-                m_mat2str.Append(t_WorldToProbe.Get<double>(2, 0) + " " + t_WorldToProbe.Get<double>(2, 1) + " " + t_WorldToProbe.Get<double>(2, 2) + " " + t_WorldToProbe.Get<double>(2, 3) + ", ");
-                m_mat2str.Append(t_WorldToProbe.Get<double>(3, 0) + " " + t_WorldToProbe.Get<double>(3, 1) + " " + t_WorldToProbe.Get<double>(3, 2) + " " + t_WorldToProbe.Get<double>(3, 3));
-                File.WriteAllText(mUSPath + "\\" + fName + ".txt", m_mat2str.ToString());
+                    // matrix로 저장
+                    //m_mat2str.Clear();
+                    //m_mat2str.Append(t_WorldToProbe.Get<double>(0, 0) + " " + t_WorldToProbe.Get<double>(0, 1) + " " + t_WorldToProbe.Get<double>(0, 2) + " " + t_WorldToProbe.Get<double>(0, 3) + ", ");
+                    //m_mat2str.Append(t_WorldToProbe.Get<double>(1, 0) + " " + t_WorldToProbe.Get<double>(1, 1) + " " + t_WorldToProbe.Get<double>(1, 2) + " " + t_WorldToProbe.Get<double>(1, 3) + ", ");
+                    //m_mat2str.Append(t_WorldToProbe.Get<double>(2, 0) + " " + t_WorldToProbe.Get<double>(2, 1) + " " + t_WorldToProbe.Get<double>(2, 2) + " " + t_WorldToProbe.Get<double>(2, 3) + ", ");
+                    //m_mat2str.Append(t_WorldToProbe.Get<double>(3, 0) + " " + t_WorldToProbe.Get<double>(3, 1) + " " + t_WorldToProbe.Get<double>(3, 2) + " " + t_WorldToProbe.Get<double>(3, 3));
+
+
+                    // quaternion으로 저장
+                    m_mat2str.Clear();
+                    m_mat2str.Append(rotProbeHolder.W + "\t" + rotProbeHolder.X + "\t" + rotProbeHolder.Y + "\t" + rotProbeHolder.Z + "\t");
+                    m_mat2str.Append(posProbeHolder.X + "\t" + posProbeHolder.Y + "\t" + posProbeHolder.Z);
+
+                    File.WriteAllText(mUSPath + "\\" + fName + ".txt", m_mat2str.ToString());
+                }
+                catch (Exception)
+                {
+
+                }
 #else
                 m_mat2str.Clear();
                 m_mat2str.Append(m_usFrameMat.M11 + " " + m_usFrameMat.M12 + " " + m_usFrameMat.M13 + " " + m_usFrameMat.M14 + ", ");
@@ -391,12 +478,49 @@ namespace bendodatasrv
                 m_mat2str.Append(m_usFrameMat.M41 + " " + m_usFrameMat.M42 + " " + m_usFrameMat.M43 + " " + m_usFrameMat.M44);
                 File.WriteAllText(mUSPath + "\\" + fName + ".txt", m_mat2str.ToString());
 #endif
+                // ResponseUSScan함수를 이용해 초음파 이미지 파일명과 rotation, position 정보를 전달
                 objUSSocket.ResponseUSScan(fName+".jpg", rotProbeHolder, posProbeHolder);
 
                 //stopwatch.Stop();
                 //Console.WriteLine("time : " + stopwatch.ElapsedMilliseconds + "ms");
                 //stopwatch.Reset();
                 //Console.WriteLine(m_ImgSeq + " img saved.");
+            }
+            // 테스트 모드는 미리 저장해놓은 데이터를 이용해 서버를 사용하는 모드(m_testFilePath 폴더 내의 데이터를 반복 전송함)
+            // conf.ini 파일에서 [Mode] 아래의 Test를 1로 설정하면 테스트 모드, 0으로 설정하면 일반 모드로 동작
+            else if (isTestMode)
+            {
+                m_ImgSeq++;
+                fName = String.Format("{0,4:D4}", m_ImgSeq);
+                var dataFile = m_testFilePath + "\\" + fName + ".txt";
+                var imageFile = m_testFilePath + "\\" + fName + ".jpg";
+
+                if (!File.Exists(imageFile))
+                {
+                    m_ImgSeq = 1;
+                    fName = String.Format("{0,4:D4}", m_ImgSeq);
+                    dataFile = m_testFilePath + "\\" + fName + ".txt";
+                    imageFile = m_testFilePath + "\\" + fName + ".jpg";
+                }
+
+                try
+                {
+                    var allData = File.ReadAllText(m_testFilePath + "\\" + fName + ".txt");
+                    var data = allData.Split('\t');
+
+                    rotProbeHolder = new Quaternion(float.Parse(data[1]), float.Parse(data[2]), float.Parse(data[3]), float.Parse(data[0]));
+                    posProbeHolder = new Vector3(float.Parse(data[4]) * m_fScaleFactor, float.Parse(data[5]) * m_fScaleFactor, float.Parse(data[6]) * m_fScaleFactor);
+
+                    File.Copy(imageFile, mUSPath + "\\" + fName + ".jpg", true);
+                    File.Copy(dataFile, mUSPath + "\\" + fName + ".txt", true);
+                }
+                catch (Exception)
+                {
+                    rotProbeHolder = new Quaternion(0, 0, 0, 0);
+                    posProbeHolder = new Vector3(0, 0, 0);
+                }
+
+                objUSSocket.ResponseUSScan(fName + ".jpg", rotProbeHolder, posProbeHolder);
             }
         }
 
@@ -443,6 +567,7 @@ namespace bendodatasrv
             }
         }
 
+        // 위치 센서, IMU센서 사용 시 아래 부분 내용 사용됨
         public void CalcOriPos(byte guideNumber) {
             Quaternion imuSenRGuide = Quaternion.Identity;
             Quaternion imuSenProbeHolder = Quaternion.Identity;

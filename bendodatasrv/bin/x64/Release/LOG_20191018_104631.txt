@@ -1,3 +1,0 @@
-10:46:31.404	US socket server is started.
-10:46:31.404	ES socket server is started.
-10:46:31.414	US Socket created

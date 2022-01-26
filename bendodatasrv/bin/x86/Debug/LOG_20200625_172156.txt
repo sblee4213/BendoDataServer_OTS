@@ -1,0 +1,11 @@
+17:21:56.193	OTS is not connected.
+17:21:56.322	US socket server is started.
+17:21:56.323	ES socket server is started.
+17:21:56.365	US Socket created
+17:21:56.365	Port bined
+17:21:56.365	US Socket listening ... 
+17:21:56.366	ES Socket created
+17:21:56.366	Port bined
+17:21:56.366	ES Socket listening ... 
+17:21:59.363	US Socket connected
+17:22:02.954	[RX]CMD_POINT_START_REQ

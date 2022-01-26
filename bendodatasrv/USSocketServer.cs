@@ -474,6 +474,7 @@ namespace bendodatasrv
             byte[] savePath = new byte[len];
             Buffer.BlockCopy(msg, 7, savePath, 0, len);
             m_bTargetPort = msg[7];
+            m_bTargetPort -= 0x30;
             objLogger.LogWrite("Target port = " + m_bTargetPort);
         }
 
@@ -542,8 +543,8 @@ namespace bendodatasrv
             AddFileName(ref resmsg, ref msgIdx, imgName);
             resmsg[msgIdx] = ETX;
             SendMessage(Encoding.Default.GetString(resmsg));
-            //objLogger.LogWrite("[TX]CMD_US_SCAN_RES|" + Encoding.ASCII.GetString(resmsg));
-            //Console.WriteLine(">> CMD_US_SCAN_RES|"+ imgName);
+            objLogger.LogWrite("[TX]CMD_US_SCAN_RES|" + Encoding.ASCII.GetString(resmsg));
+            Console.WriteLine(">> CMD_US_SCAN_RES|"+ imgName);
         }
 
         // Response to request message for the initial position of the probe

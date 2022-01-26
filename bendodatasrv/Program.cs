@@ -137,7 +137,7 @@ namespace bendodatasrv
             Console.WriteLine("┃          BENDO DATA SERVER          ┃");
             Console.WriteLine("┃                                     ┃");
             Console.WriteLine("┃              KNU MDRIP              ┃");
-            Console.WriteLine("┃              2020.05.21             ┃");
+            Console.WriteLine("┃              2020.08.07             ┃");
             Console.WriteLine("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛");
         }
     }

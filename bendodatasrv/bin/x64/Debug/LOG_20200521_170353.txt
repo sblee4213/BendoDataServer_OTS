@@ -1,8 +1,0 @@
-17:03:53.271	US socket server is started.
-17:03:53.272	ES socket server is started.
-17:03:53.290	US Socket created
-17:03:53.291	Port bined
-17:03:53.292	US Socket listening ... 
-17:03:53.294	ES Socket created
-17:03:53.294	Port bined
-17:03:53.294	ES Socket listening ... 
